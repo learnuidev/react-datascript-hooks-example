@@ -1,8 +1,61 @@
-import React from "react";
+import React, { useState, useContext } from "react";
 import "./App.css";
 import ConnContext from "./db/ConnContext";
 import datascript from "datascript";
 import useBind from "./db/useBind";
+import { random_uuid } from "./utils";
+
+// ===== RULES ======
+
+// ====== QUERIES ======
+
+// ====== UI ======
+const ui_query = `
+  [:find ?uid .
+   :where
+   [?uid "ui/id"]
+  ]
+`;
+
+const ui_query_2 = `
+  [:find (pull ?uid [* {"ui/auth-user" [*]}]) .
+   :where
+   [?uid "ui/id"]
+  ]
+`;
+
+// ====== AUTH ======
+const authUserQuery = `
+   [:find (pull ?user ["user/email"]) .
+    :where
+    [?ui "ui/auth-user" ?user]
+   ]
+  `;
+
+// ====== USERS ======
+const usersQuery = `
+  [:find [(pull ?user ["user/email" "user/name"]) ...]
+   :where [?user "user/name"]
+  ]
+`;
+
+const userQuery = `
+  [:find ?name .
+   :in $ ?email-or-id
+   :where
+    (or 
+      [?u "user/email" ?email-or-id]
+      [?u "user/id"    ?email-or-id])
+    [?u "user/name"  ?name]
+  ]`;
+
+const userNamesQuery = `
+  [:find [?user ...]
+   :where
+   [?u "user/name" ?user]]
+`;
+
+// ====== TWEETS ======
 
 function populate(conn) {
   const data = [
@@ -15,14 +68,8 @@ function populate(conn) {
 }
 
 function UsersList() {
-  const conn = React.useContext(ConnContext);
-  const usersQuery = `
-  [:find [?user ...]
-   :where [?u "user/name" ?user]]`;
-
-  // console.log("users get rendered");
-
-  const users = useBind(conn, usersQuery);
+  const conn = useContext(ConnContext);
+  const users = useBind(conn, userNamesQuery);
   return (
     <div>
       <ul>
@@ -36,68 +83,95 @@ function UsersList() {
   );
 }
 
+function addTweet(event, tweet, updateTweet, conn) {
+  event.preventDefault();
+  console.log("tweet", tweet);
+  const ui = datascript.q(ui_query_2, datascript.db(conn));
+  const authEmail = ui["ui/auth-user"]["user/email"];
+  console.log("UI", authEmail);
+
+  // const newTweet = [[":db/add", uid, "ui/auth-user", ["user/email", email]]];
+  const newTweet = [
+    {
+      "tweet/id": random_uuid(),
+      "tweet/title": tweet,
+      "tweet/author": ["user/email", authEmail],
+    },
+  ];
+  datascript.transact(conn, newTweet);
+  updateTweet("");
+}
+
 function TweetInput() {
+  const conn = useContext(ConnContext);
+
+  const initState = "";
+  const [tweetInput, updateTweet] = useState(initState);
+
+  const handleChange = (event) => updateTweet(event.target.value);
+
   return (
-    <form>
-      <input />
-      <button> Tweet</button>
+    <form onSubmit={(event) => addTweet(event, tweetInput, updateTweet, conn)}>
+      <input value={tweetInput} onChange={handleChange} />
+      <button type="submit"> Tweet</button>
     </form>
   );
 }
 
 function Tweets() {
-  const conn = React.useContext(ConnContext);
+  const conn = useContext(ConnContext);
 
   // console.log("user get rendered");
-
-  const userQuery = `
-  [:find ?name .
-   :in $ ?email
-   :where
-   [?u "user/email" ?email]
-   [?u "user/name"  ?name]
-  ]`;
 
   const johnDoe = useBind(conn, userQuery, "john.doe@gmail.com");
 
   // console.log("Single User");
+
+  const tweetsQuery = `
+    [:find [(pull ?tweet [* {"tweet/author" [*]}]) ...]
+     :where
+     [?tweet "tweet/title"]
+    ]
+  `;
+
+  const tweets = useBind(conn, tweetsQuery);
+
+  console.log("tweets", tweets);
 
   return (
     <div>
       <h1> Tweets</h1>
       <TweetInput />
       {johnDoe}
+      <div>
+        <ul>
+          {tweets.map((tweet) => {
+            const tweetTitle = tweet["tweet/title"];
+            const tweetAuthor = tweet["tweet/author"]["user/name"];
+            return (
+              <li key={tweet["tweet/id"]}>
+                {tweetTitle} - {tweetAuthor}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
 
 function changeAuthUser(email, conn) {
   console.log("email", email);
-  const query = `[:find ?uid .
-    :where
-    [?uid "ui/id"]
-   ]
-  `;
-  const uid = datascript.q(query, datascript.db(conn));
+
+  const uid = datascript.q(ui_query, datascript.db(conn));
   console.log("uid", uid);
   const authUser = [[":db/add", uid, "ui/auth-user", ["user/email", email]]];
   datascript.transact(conn, authUser);
 }
 
 function NavBar() {
-  const conn = React.useContext(ConnContext);
-  const authUserQuery = `
-   [:find (pull ?user ["user/email"]) .
-    :where
-    [?ui "ui/auth-user" ?user]
-  ]
-  `;
+  const conn = useContext(ConnContext);
   const authUser = useBind(conn, authUserQuery);
-
-  const usersQuery = `
-  [:find [(pull ?user ["user/email" "user/name"]) ...]
-   :where [?user "user/name"]]`;
-
   const users = useBind(conn, usersQuery);
 
   console.log("Auth user", users);

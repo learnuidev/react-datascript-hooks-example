@@ -20,7 +20,7 @@ function UsersList() {
   [:find [?user ...]
    :where [?u "user/name" ?user]]`;
 
-  console.log("users get rendered");
+  // console.log("users get rendered");
 
   const users = useBind(conn, usersQuery);
   return (
@@ -36,10 +36,19 @@ function UsersList() {
   );
 }
 
-function UserItem() {
+function TweetInput() {
+  return (
+    <form>
+      <input />
+      <button> Tweet</button>
+    </form>
+  );
+}
+
+function Tweets() {
   const conn = React.useContext(ConnContext);
 
-  console.log("user get rendered");
+  // console.log("user get rendered");
 
   const userQuery = `
   [:find ?name .
@@ -51,38 +60,81 @@ function UserItem() {
 
   const johnDoe = useBind(conn, userQuery, "john.doe@gmail.com");
 
-  console.log("Single User");
+  // console.log("Single User");
 
   return (
     <div>
-      <h1> Single User</h1>
+      <h1> Tweets</h1>
+      <TweetInput />
       {johnDoe}
     </div>
   );
 }
 
+function changeAuthUser(email, conn) {
+  console.log("email", email);
+  const query = `[:find ?uid .
+    :where
+    [?uid "ui/id"]
+   ]
+  `;
+  const uid = datascript.q(query, datascript.db(conn));
+  console.log("uid", uid);
+  const authUser = [[":db/add", uid, "ui/auth-user", ["user/email", email]]];
+  datascript.transact(conn, authUser);
+}
+
 function NavBar() {
   const conn = React.useContext(ConnContext);
   const authUserQuery = `
-   [:find (pull ?user [*]) .
+   [:find (pull ?user ["user/email"]) .
     :where
     [?ui "ui/auth-user" ?user]
   ]
   `;
-
   const authUser = useBind(conn, authUserQuery);
 
-  console.log("Auth user", authUser);
-  return <nav>Auth User: {authUser["user/email"]} </nav>;
+  const usersQuery = `
+  [:find [(pull ?user ["user/email" "user/name"]) ...]
+   :where [?user "user/name"]]`;
+
+  const users = useBind(conn, usersQuery);
+
+  console.log("Auth user", users);
+  return (
+    <nav
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <p>Auth User: {authUser["user/email"]}</p>
+      <select
+        value={authUser["user/email"]}
+        onChange={(event) => changeAuthUser(event.target.value, conn)}
+      >
+        {users.map((user) => {
+          return (
+            <option key={user["user/email"]} value={user["user/email"]}>
+              {user["user/name"]}
+            </option>
+          );
+        })}
+      </select>
+    </nav>
+  );
 }
 
 function App() {
   return (
     <div className="App">
-      <NavBar />
-      <h1> Users: </h1>
-      <UsersList />
-      <UserItem />
+      <div className="App-inner">
+        <NavBar />
+        <h1> Users: </h1>
+        <UsersList />
+        <Tweets />
+      </div>
     </div>
   );
 }

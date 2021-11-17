@@ -1,9 +1,20 @@
+* {
+  margin: 0px;
+  padding: 0px;
+}
+
 .App {
   text-align: center;
   max-width: 1000px;
   min-width: 280px;
   position: relative;
   padding: 50px 150px;
+}
+
+@media screen and (max-width: 620px) {
+  .App {
+    padding: 50px;
+  }
 }
 
 .App-inner {
@@ -41,11 +52,47 @@ li {
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.tweetItem {
+  /* background-color: #61dafb; */
+  text-align: start;
+  padding: 10px;
+  margin: 10px 0px;
+  display: flex;
+  flex-direction: row;
+  border: 1px solid #dcd0f9;
+}
+
+.tweetPic {
+  margin-right: 10px;
+}
+
+.tweetImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+}
+
+.tweetDetails {
+}
+.tweetAuthorAndHandle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 10px;
+}
+
+.tweetAuthor {
+  font-weight: 800;
+}
+
+.tweetHandle {
+  color: grey;
+}
+.tweetTitle {
+  margin-bottom: 10px;
+}
+
+.tweetButtons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 10px;
 }

@@ -56,6 +56,52 @@ const userNamesQuery = `
 `;
 
 // ====== TWEETS ======
+const tweetsQuery = `
+  [:find [(pull ?tweet [* {"tweet/author" [*]}]) ...]
+  :where
+  [?tweet "tweet/title"]
+  ]
+`;
+
+const tweetQuery = `
+  [:find (pull ?tweet [* {"tweet/author" [*]}]) .
+  :in $ ?tid
+  :where
+  [?tweet "tweet/id" ?tid]
+  [?tweet "tweet/title"]
+  ]
+`;
+const tweetIdsQuery = `
+  [:find [?tid ...]
+   :where [?tweet "tweet/id" ?tid]]
+`;
+
+const tweetLikesCountQuery = ` 
+  [:find (count ?user) .
+   :in $ ?tweet-id
+   :where
+   [?tweet "tweet/id" ?tweet-id]
+   [?tweet "tweet/likes" ?user]
+  ]
+`;
+
+const tweetRepliesCountQuery = ` 
+  [:find (count ?user) .
+   :in $ ?tweet-id
+   :where
+   [?tweet "tweet/id" ?tweet-id]
+   [?tweet "tweet/replies" ?user]
+  ]
+`;
+
+const tweetRetweetsCountQuery = ` 
+  [:find (count ?user) .
+   :in $ ?tweet-id
+   :where
+   [?tweet "tweet/id" ?tweet-id]
+   [?tweet "tweet/retweets" ?user]
+  ]
+`;
 
 function populate(conn) {
   const data = [
@@ -83,11 +129,11 @@ function UsersList() {
   );
 }
 
-function addTweet(event, tweet, updateTweet, conn) {
+function addTweet(event, tweet, updateTweet, authEmail, conn) {
   event.preventDefault();
   console.log("tweet", tweet);
-  const ui = datascript.q(ui_query_2, datascript.db(conn));
-  const authEmail = ui["ui/auth-user"]["user/email"];
+  // const ui = datascript.q(ui_query_2, datascript.db(conn));
+  // const authEmail = ui["ui/auth-user"]["user/email"];
   console.log("UI", authEmail);
 
   // const newTweet = [[":db/add", uid, "ui/auth-user", ["user/email", email]]];
@@ -104,6 +150,9 @@ function addTweet(event, tweet, updateTweet, conn) {
 
 function TweetInput() {
   const conn = useContext(ConnContext);
+  const authUser = useBind(conn, authUserQuery);
+  const userAvatar = authUser["user/avatar"];
+  const userEmail = authUser["user/email"];
 
   const initState = "";
   const [tweetInput, updateTweet] = useState(initState);
@@ -111,30 +160,121 @@ function TweetInput() {
   const handleChange = (event) => updateTweet(event.target.value);
 
   return (
-    <form onSubmit={(event) => addTweet(event, tweetInput, updateTweet, conn)}>
-      <input value={tweetInput} onChange={handleChange} />
-      <button type="submit"> Tweet</button>
-    </form>
+    <div>
+      <form
+        onSubmit={(event) =>
+          addTweet(event, tweetInput, updateTweet, userEmail, conn)
+        }
+      >
+        <input
+          value={tweetInput}
+          placeholder="Whats happening?"
+          onChange={handleChange}
+        />
+        <button type="submit"> Tweet</button>
+      </form>
+    </div>
+  );
+}
+
+function likeTweet(tweetId, email, conn) {
+  const updatedTweet = [
+    {
+      "tweet/id": tweetId,
+      "tweet/likes": ["user/email", email],
+    },
+  ];
+
+  datascript.transact(conn, updatedTweet);
+}
+function replyTweet(tweetId, email, conn) {
+  const updatedTweet = [
+    {
+      "tweet/id": tweetId,
+      "tweet/replies": ["user/email", email],
+    },
+  ];
+
+  datascript.transact(conn, updatedTweet);
+}
+
+function reTweet(tweetId, email, conn) {
+  const updatedTweet = [
+    {
+      "tweet/id": tweetId,
+      "tweet/retweets": ["user/email", email],
+    },
+  ];
+
+  datascript.transact(conn, updatedTweet);
+}
+
+function TweetItem({ tweetId }) {
+  const conn = useContext(ConnContext);
+  const tweet = useBind(conn, tweetQuery, tweetId);
+  const tweetTitle = tweet["tweet/title"];
+  const user = tweet["tweet/author"];
+  const tweetAuthor = user["user/name"];
+  const tweetHandle = user["user/handle"];
+  const displayUrl = user["user/avatar"];
+
+  // Auth User
+  const authUser = useBind(conn, authUserQuery);
+  const authUserEmail = authUser["user/email"];
+
+  // Tweet Likes count
+  const tweetReplies = useBind(conn, tweetRepliesCountQuery, tweetId);
+  const tweetRetweets = useBind(conn, tweetRetweetsCountQuery, tweetId);
+  const tweetLikes = useBind(conn, tweetLikesCountQuery, tweetId);
+
+  console.log("tweetLikes", tweetLikes);
+
+  console.log("displayUrl", displayUrl);
+  return (
+    <li className={"tweetItem"} key={tweet["tweet/id"]}>
+      <div className="tweetPic">
+        <img className="tweetImg" src={displayUrl} alt={tweetAuthor} />
+      </div>
+      <div className="tweetDetails">
+        <div className={"tweetAuthorAndHandle"}>
+          <p className="tweetAuthor">{tweetAuthor}</p>
+          <p className="tweetHandle">{tweetHandle}</p>
+        </div>
+
+        <p className="tweetTitle">{tweetTitle}</p>
+        <div className="tweetButtons">
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <button onClick={() => replyTweet(tweetId, authUserEmail, conn)}>
+              Reply
+            </button>
+            <p>{tweetReplies}</p>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <button onClick={() => reTweet(tweetId, authUserEmail, conn)}>
+              Retweet
+            </button>
+            <p>{tweetRetweets}</p>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <button onClick={() => likeTweet(tweetId, authUserEmail, conn)}>
+              Like
+            </button>
+            <p>{tweetLikes}</p>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }
 
 function Tweets() {
   const conn = useContext(ConnContext);
 
-  // console.log("user get rendered");
-
-  const johnDoe = useBind(conn, userQuery, "john.doe@gmail.com");
-
-  // console.log("Single User");
-
-  const tweetsQuery = `
-    [:find [(pull ?tweet [* {"tweet/author" [*]}]) ...]
-     :where
-     [?tweet "tweet/title"]
-    ]
-  `;
-
   const tweets = useBind(conn, tweetsQuery);
+
+  const tweetIds = useBind(conn, tweetIdsQuery);
 
   console.log("tweets", tweets);
 
@@ -142,17 +282,11 @@ function Tweets() {
     <div>
       <h1> Tweets</h1>
       <TweetInput />
-      {johnDoe}
+
       <div>
         <ul>
-          {tweets.map((tweet) => {
-            const tweetTitle = tweet["tweet/title"];
-            const tweetAuthor = tweet["tweet/author"]["user/name"];
-            return (
-              <li key={tweet["tweet/id"]}>
-                {tweetTitle} - {tweetAuthor}
-              </li>
-            );
+          {tweetIds.map((tweetId) => {
+            return <TweetItem key={tweetId} tweetId={tweetId} />;
           })}
         </ul>
       </div>
@@ -205,8 +339,6 @@ function App() {
     <div className="App">
       <div className="App-inner">
         <NavBar />
-        <h1> Users: </h1>
-        <UsersList />
         <Tweets />
       </div>
     </div>

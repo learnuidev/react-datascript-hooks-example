@@ -3,6 +3,10 @@ const userSchema = {
     ":db/cardinality": ":db.cardinality/one",
     ":db/unique": ":db.unique/identity",
   },
+  "user/handle": {
+    ":db/cardinality": ":db.cardinality/one",
+    ":db/unique": ":db.unique/identity",
+  },
   "user/follows": {
     ":db/cardinality": ":db.cardinality/many",
     ":db/valueType": ":db.type/ref",
@@ -35,15 +39,20 @@ const tweetSchema = {
     ":db/cardinality": ":db.cardinality/one",
     ":db/unique": ":db.unique/identity",
   },
-  "tweet/likes": {
-    ":db/cardinality": ":db.cardinality/many",
-    ":db/valueType": ":db.type/ref",
-  },
+
   "tweet/author": {
     ":db/cardinality": ":db.cardinality/one",
     ":db/valueType": ":db.type/ref",
   },
-  "tweet/tweets": {
+  "tweet/likes": {
+    ":db/cardinality": ":db.cardinality/many",
+    ":db/valueType": ":db.type/ref",
+  },
+  "tweet/replies": {
+    ":db/cardinality": ":db.cardinality/many",
+    ":db/valueType": ":db.type/ref",
+  },
+  "tweet/retweets": {
     ":db/cardinality": ":db.cardinality/many",
     ":db/valueType": ":db.type/ref",
   },
